@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'">
+<title>Beacon Lab</title>
+<style>
+:root{--bg:#0f1218;--panel:#171c26;--panel2:#1e2531;--line:#2b3445;--fg:#e8ecf3;--dim:#93a0b5;--acc:#5aa9ff;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;flex-wrap:wrap}
+h1{font-size:17px;margin:0;font-weight:650}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{background:transparent;color:var(--dim);border:1px solid transparent;padding:7px 12px;border-radius:8px;font:inherit;cursor:pointer}
+nav button[aria-selected=true]{background:var(--panel2);color:var(--fg);border-color:var(--line)}
+main{max-width:1180px;margin:0 auto;padding:16px}
+section{display:none}section.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.card h2{font-size:14px;margin:0 0 10px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+@media(max-width:820px){.g2{grid-template-columns:1fr}}
+button.b,select,input,textarea{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+button.b{cursor:pointer}button.b:hover{border-color:var(--acc)}
+button.b.pri{background:#1d4f8f;border-color:#2d6cc0}
+button.b.dng{border-color:#7a2f2f;color:#fecaca}
+button.b:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.dim{color:var(--dim)}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;border:1px solid var(--line)}
+.pill.ok{color:var(--ok);border-color:#1f5a38}.pill.warn{color:var(--warn);border-color:#6b5316}.pill.bad{color:var(--bad);border-color:#6d2c2c}.pill.demo{color:#c4b5fd;border-color:#5b4a9a}
+.banner{padding:9px 12px;border-radius:9px;margin-bottom:12px;border:1px solid var(--line);background:var(--panel2)}
+.banner.warn{border-color:#6b5316;color:#fde7a3}.banner.bad{border-color:#6d2c2c;color:#fecaca}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;font-size:12px}
+tr.sel{background:#1b2a42}tr.click{cursor:pointer}tr.click:hover{background:#1a2230}
+label{display:flex;gap:8px;align-items:center}
+input[type=range]{width:180px;padding:0}
+.big{font-size:64px;font-weight:700;line-height:1}
+/* ---- 3D dice ---- */
+.stage{height:380px;perspective:900px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border-radius:12px;background:radial-gradient(circle at 50% 30%,#1c2433,#0f1218 70%)}
+.scene{width:0;height:0;transform-style:preserve-3d;transform:rotateX(-24deg) rotateY(-28deg) translateY(-14px)}
+.shadow{position:absolute;left:50%;bottom:52px;width:200px;height:34px;margin-left:-100px;background:radial-gradient(ellipse,rgba(0,0,0,.6),rgba(0,0,0,0) 70%);transition:opacity .3s}
+.cube{position:absolute;width:0;height:0;transform-style:preserve-3d}
+.face{position:absolute;width:140px;height:140px;left:-70px;top:-70px;border-radius:5px;backface-visibility:hidden;
+ display:flex;align-items:center;justify-content:center;font:700 74px/1 system-ui,sans-serif;color:#1a1a1a;
+ background:rgb(calc(var(--b,1)*235),calc(var(--b,1)*232),calc(var(--b,1)*218));
+ box-shadow:inset 0 0 0 2px rgba(255,255,255,.18),inset 0 0 16px 4px rgba(0,0,0,.30);user-select:none}
+.face.top{box-shadow:inset 0 0 0 5px #4ade80,inset 0 0 26px 6px rgba(74,222,128,.55)}
+.cube.dim .face{filter:saturate(.3) brightness(.6)}
+.axis{position:absolute;height:4px;left:0;top:-2px;transform-origin:0 50%;border-radius:2px}
+.axis i{position:absolute;right:-16px;top:-9px;font:700 13px system-ui;font-style:normal}
+.hint{position:absolute;left:12px;top:10px;font-size:12px}
+.badge{position:absolute;right:12px;top:10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px}
+.kv span:nth-child(odd){color:var(--dim)}
+pre.log{max-height:240px;overflow:auto;background:#0b0e13;border:1px solid var(--line);border-radius:8px;padding:8px;margin:6px 0;white-space:pre-wrap;word-break:break-all}
+.hex{word-break:break-all}
+details summary{cursor:pointer;color:var(--dim)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Beacon Lab</h1>
+  <nav role="tablist" id="tabs">
+    <button role="tab" data-t="scan" aria-selected="true">Scanner</button>
+    <button role="tab" data-t="face" aria-selected="false">Face Finder</button>
+    <button role="tab" data-t="dice" aria-selected="false">Dice (ACC)</button>
+    <button role="tab" data-t="lab" aria-selected="false">Decoder Lab</button>
+    <button role="tab" data-t="setup" aria-selected="false">Beacon Setup</button>
+    <button role="tab" data-t="gatt" aria-selected="false">GATT Console</button>
+    <button role="tab" data-t="about" aria-selected="false">Privacy &amp; limits</button>
+  </nav>
+  <span id="supportPill" class="pill"></span>
+  <button class="b" id="btnVoice" title="Speak prompts and the top face aloud">Voice: on</button>
+</header>
+<main>
+
+<div id="supportBanner"></div>
+
+<!-- ================= SCANNER ================= -->
+<section id="t-scan" class="on">
+  <div class="card">
+    <h2>Scan advertisements</h2>
+    <div class="row">
+      <button class="b pri" id="btnScan">Start scan</button>
+      <button class="b" id="btnStop" disabled>Stop scan</button>
+      <button class="b" id="btnPick">Add beacon (picker)</button>
+      <button class="b" id="btnClear">Clear list</button>
+      <label class="dim"><input type="text" id="nameFilter" placeholder="name contains…" style="width:150px"></label>
+      <span id="scanState" class="pill">idle</span>
+    </div>
+    <div class="dim" style="font-size:13px">Browsers never reveal a beacon's MAC address (your C3:00:00:51:52:97). Identify it by name, RSSI (hold it next to the phone) or by watching which row's raw bytes change. Click a row to make it the <b>target</b> for the Dice and Decoder Lab tabs.</div>
+  </div>
+  <div class="card">
+    <h2>Devices <span id="devCount" class="dim"></span></h2>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Name</th><th>RSSI</th><th>Seen</th><th>Pkts</th><th>Decoded / raw frames</th></tr></thead>
+      <tbody id="devBody"><tr><td colspan="5" class="dim">No advertisements yet.</td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ================= FACE FINDER ================= -->
+<section id="t-face">
+  <div class="card" style="text-align:center">
+    <div class="dim" style="font-size:12px">SIDE FACING UP (from the accelerometer)</div>
+    <div class="big" id="ffNum" style="font-size:150px;padding:6px 0">?</div>
+    <div id="ffSub" class="dim">Not set up yet: run a setup below.</div>
+    <div class="row" style="justify-content:center;margin-top:10px">
+      <button class="b pri" id="ffListen">Start listening</button>
+      <button class="b" id="ffSay">Say it again</button>
+      <span id="ffBadge" class="pill">idle</span>
+    </div>
+    <div class="dim" style="font-size:12px;margin-top:6px">Place the beacon on a side and leave it. The number updates only after it stops moving and is read by voice. This beacon has an accelerometer only (no gyroscope), so the side is worked out from gravity.</div>
+  </div>
+  <div class="card">
+    <h2>One-time setup (teaches the app your beacon's data)</h2>
+    <div class="dim" style="font-size:13px;margin-bottom:6px">1) In the Scanner tab tap your beacon so it is the target. 2) Press a setup button and follow the voice. The app picks the right data by itself: for the first 6 seconds <b>shake the beacon gently</b> when asked. Quick setup uses 3 sides (1, 2, 3); the other three are worked out. Full setup uses all 6 and is more accurate.</div>
+    <div class="row"><button class="b pri" id="ffQuick">Quick setup (3 sides)</button><button class="b" id="ffFull">Full setup (6 sides)</button><button class="b" id="ffCapNow" disabled>Capture now</button><button class="b dng" id="ffStop" disabled>Cancel</button></div>
+    <div id="ffStatus" class="banner" style="display:none"></div>
+    <div class="row"><button class="b" id="ffReport">Copy diagnostic report</button><span class="dim" id="ffReportInfo" style="font-size:12px"></span></div>
+  </div>
+</section>
+
+<!-- ================= DICE ================= -->
+<section id="t-dice">
+  <div class="grid g2">
+    <div>
+      <div class="card" style="padding:10px">
+        <div class="stage" id="stage">
+          <div class="hint dim">accelerometer-based tilt · yaw not tracked</div>
+          <div class="badge"><span id="liveBadge" class="pill">NO DATA</span></div>
+          <div class="shadow" id="shadow"></div>
+          <div class="scene"><div class="cube" id="cube"></div></div>
+        </div>
+        <div class="row" style="justify-content:space-between;margin-top:10px">
+          <div><div class="dim" style="font-size:12px">TOP FACE (calculated)</div><div class="big" id="topNum">?</div><div class="dim" id="topDetail">no data</div></div>
+          <div class="kv mono" id="packetInfo"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Readings</h2>
+        <div class="kv mono">
+          <span>Raw (decoded)</span><span id="rawTxt">—</span>
+          <span>Filtered (g)</span><span id="filtTxt">—</span>
+          <span>Up vector (body)</span><span id="upTxt">—</span>
+          <span>Calibration</span><span id="calTxt">not calibrated</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>Source</h2>
+        <div class="row">
+          <button class="b pri" id="btnTrack">Start tracking</button>
+          <button class="b" id="btnUntrack" disabled>Stop tracking</button>
+          <button class="b" id="btnCal">Calibrate</button>
+          <button class="b" id="btnReset">Reset orientation</button>
+        </div>
+        <div class="dim" id="srcInfo" style="font-size:13px"></div>
+        <div class="dim" style="font-size:13px;margin-top:6px">Calibrate with the beacon still on a flat surface. Decoder not set up yet? Use the <b>Decoder Lab</b> tab.</div>
+      </div>
+      <div class="card">
+        <h2>Display</h2>
+        <div class="row"><label>Smoothing <input type="range" id="rTau" min="0" max="50" step="1"><span id="vTau" class="mono"></span></label></div>
+        <div class="row"><label>Sensitivity <input type="range" id="rSens" min="5" max="20" step="1"><span id="vSens" class="mono"></span></label></div>
+        <div class="row"><label><input type="checkbox" id="cAxes"> Show axes</label>
+          <label><input type="checkbox" id="cRaw"> Show raw data</label>
+          <label><input type="checkbox" id="cAuto"> Auto top-face detection</label></div>
+        <div class="row"><label>Voice volume <input type="range" id="rVol" min="0" max="10" step="1"><span id="vVol" class="mono"></span></label>
+          <button class="b" id="btnVoiceTest">Test voice</button></div>
+        <div class="dim" style="font-size:12px">When voice is on, the app says "Face N" once the dice settles on a face (not while it is moving).</div>
+        <div class="row"><label>Stale after <select id="sStale"><option>3</option><option>5</option><option>10</option><option>20</option></select> s</label></div>
+      </div>
+      <div class="card" id="demoCard">
+        <h2>Demo mode <span class="pill demo">NOT SENSOR DATA</span></h2>
+        <div class="dim" style="font-size:13px">Drives the dice from sliders so you can check the 3D view without a beacon. Never mixed with live data.</div>
+        <div class="row"><label><input type="checkbox" id="cDemo"> Enable demo</label></div>
+        <div class="row"><label>Roll <input type="range" id="dX" min="-180" max="180" value="0"></label></div>
+        <div class="row"><label>Pitch <input type="range" id="dZ" min="-180" max="180" value="0"></label></div>
+        <div class="row"><label>Shake <input type="range" id="dS" min="0" max="100" value="0"></label></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DECODER LAB ================= -->
+<section id="t-lab">
+  <div class="card">
+    <h2>Why this exists</h2>
+    <div class="dim">Minew's ACC frame layout, units and axis signs are not published. Instead of guessing offsets, this lab learns them from <b>your</b> beacon: you place it with six sides up, capture a packet for each, and it finds the three bytes-fields whose vector always has the same length (gravity) and points in six different directions, then solves the axis mapping. Everything is stored locally and can be edited by hand below.</div>
+  </div>
+  <div class="grid g2">
+    <div>
+      <div class="card">
+        <h2>1 · Target and data source</h2>
+        <div class="row">Target: <b id="labTarget">none selected</b></div>
+        <div class="row">Source blob: <select id="srcKey"></select> <span class="dim" id="srcLen"></span></div>
+        <div class="mono hex" id="srcHex">—</div>
+        <div class="dim" style="font-size:13px">Pick the Scanner tab, select your beacon, then choose which advertisement blob carries the ACC frame. Tip: move the beacon and watch which blob's bytes change.</div>
+      </div>
+      <div class="card">
+        <h2>2 · Capture six poses</h2>
+        <div class="dim" style="font-size:13px;margin-bottom:6px">Choose which physical side of the beacon you call 1…6 (opposite sides must add to 7, e.g. 1 opposite 6). With side N facing straight up and the beacon still, wait for a fresh packet and press the button. Keep the same orientation of the beacon for all poses.</div>
+        <div class="banner" style="margin:8px 0"><b>Easiest way:</b> press <b>Start guided capture</b>. The app tells you (by voice and text) which side to put facing up, waits until the beacon is still, captures it by itself, and moves on to the next side. When all six are captured it analyzes them, starts tracking and calibrates.</div>
+        <div class="row"><button class="b pri" id="btnGuided">Start guided capture</button><button class="b" id="btnGNow" disabled>Capture now</button><button class="b dng" id="btnGStop" disabled>Cancel</button>
+          <label class="dim">Still tolerance <input id="gTol" type="number" min="1" max="20000" value="30" style="width:80px"></label></div>
+        <div id="guidedStatus" class="banner" style="display:none"></div>
+        <details><summary>Manual capture</summary><div class="row" id="poseBtns"></div></details>
+        <div class="mono" id="poseList"></div>
+        <div class="row"><button class="b pri" id="btnSolve">Analyze poses</button><button class="b dng" id="btnPoseClear">Clear poses</button></div>
+        <div id="solveOut" class="mono"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>3 · Active decoder (editable)</h2>
+        <div class="kv">
+          <span>Source key</span><span id="cfgKey" class="mono">—</span>
+          <span>Format</span><span><select id="cfgFmt"><option value="i16le">int16 little-endian</option><option value="i16be">int16 big-endian</option><option value="i8">int8</option></select></span>
+          <span>X offset</span><span><input id="cfgX" type="number" min="0" max="64" style="width:80px"></span>
+          <span>Y offset</span><span><input id="cfgY" type="number" min="0" max="64" style="width:80px"></span>
+          <span>Z offset</span><span><input id="cfgZ" type="number" min="0" max="64" style="width:80px"></span>
+          <span>Scale → g</span><span><input id="cfgScale" type="number" step="any" style="width:130px"></span>
+          <span>Frame match</span><span>byte @ <input id="cfgMO" type="number" min="-1" max="64" style="width:64px"> = <input id="cfgMV" type="number" min="0" max="255" style="width:64px"> <span class="dim">(offset -1 = off)</span></span>
+          <span>Axis map</span><span class="mono" id="cfgMap">identity</span>
+        </div>
+        <div class="row"><button class="b pri" id="btnCfgSave">Save</button><button class="b dng" id="btnCfgReset">Reset decoder</button></div>
+        <div id="cfgLive" class="mono dim">—</div>
+      </div>
+      <div class="card">
+        <h2>Free-run field finder</h2>
+        <div class="dim" style="font-size:13px">Alternative: let the beacon sit in several still orientations while the sample buffer fills (needs ≥ 8 distinct packets with real orientation changes), then search.</div>
+        <div class="row"><button class="b" id="btnBufClear">Clear buffer</button><button class="b" id="btnBufSearch">Search buffer</button><span id="bufInfo" class="dim"></span></div>
+        <div id="bufOut" class="mono"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BEACON SETUP ================= -->
+<section id="t-setup">
+  <div class="card">
+    <h2>What BeaconSET+ does, and what this web app can't</h2>
+    <p style="margin-top:0">BeaconSET+ connects to the beacon over a Bluetooth connection, asks for the beacon's <b>8-character password</b> (the factory default is <span class="mono">minew123</span>), reads the six frame slots and writes your changes back. Minew's SDK guide describes this (password prompt, six slots, advertising interval, TX power, ACC parameters, triggers, connectable on/off) but <b>does not publish the Bluetooth service/characteristic IDs or the bytes</b> used for the password and the writes. A browser page can't repeat that handshake without them, and guessing could lock the beacon. That is why the GATT Console drops out: the beacon hangs up when no valid password arrives.</p>
+    <p class="dim" style="margin-bottom:0">Use BeaconSET+ to change settings; use this app only to <i>read</i> the broadcast. Below is what to check in BeaconSET+ so the broadcast carries the data this app needs.</p>
+  </div>
+  <div class="card">
+    <h2>Checklist for BeaconSET+ (tick as you verify)</h2>
+    <div id="chk"></div>
+  </div>
+  <div class="card">
+    <h2>Optional: unlock real configuration in this web app</h2>
+    <p style="margin-top:0">Android can record the Bluetooth traffic between BeaconSET+ and your beacon. From that recording the exact service IDs, the password message and the write messages for <b>your</b> beacon can be read out and built into this page. Steps on your realme phone:</p>
+    <ol>
+      <li>Settings → About phone → tap <b>Build number</b> 7 times. Then Settings → Additional settings → <b>Developer options</b> → turn on <b>Enable Bluetooth HCI snoop log</b> (if there are options, choose "Enabled" / "Full"). Turn Bluetooth off and on.</li>
+      <li>Open BeaconSET+, connect to the beacon with the password, open the ACC slot, change the advertising interval a little (e.g. 1000 → 900 ms), Save, change it back, Save, then disconnect.</li>
+      <li>Developer options → <b>Take bug report</b> → Full report. When it finishes, share the zip file to yourself and attach it in the chat with Claude.</li>
+    </ol>
+    <div class="banner warn">The recording contains the beacon's MAC address and the password you typed. If it's still the default <span class="mono">minew123</span> that's harmless; if you set your own password, change it afterwards. Only share it with someone you trust. Even with the recording, write support can't be promised; a wrong write can lock the beacon.</div>
+  </div>
+</section>
+
+<!-- ================= GATT ================= -->
+<section id="t-gatt">
+  <div class="card">
+    <h2>GATT console (connect, read, notify, write)</h2>
+    <div class="banner warn">This is the generic part of "BeaconSET+": connecting and inspecting a beacon. Minew's configuration protocol and password handshake are not publicly documented, so this app does not know which bytes to write. Writing is manual and at your own risk, and a wrong write can disable or lock your beacon.</div>
+    <div class="banner" style="margin:8px 0">Chrome shows <b>only</b> the services whose UUID you list here. If the log shows just the standard ones (1800/2a00…), the beacon's own service is hidden. Install <b>nRF Connect</b> on the phone, connect to the beacon there, copy the service UUIDs it shows, and paste them below.</div>
+    <div class="row">Extra service UUIDs to request access to (comma separated, 16-bit like <span class="mono">ffe0</span> or full 128-bit):</div>
+    <div class="row"><input id="gUuids" style="width:100%" placeholder="e.g. ffe0, ffe1, 6e400001-b5a3-f393-e0a9-e50e24dcca9e"></div>
+    <div class="row">
+      <button class="b pri" id="gConnect">Choose device &amp; connect</button>
+      <button class="b" id="gDisc" disabled>Disconnect</button>
+      <span id="gState" class="pill">disconnected</span>
+    </div>
+  </div>
+  <div class="card"><h2>Services</h2><div id="gTree" class="dim">Not connected.</div></div>
+  <div class="card"><h2>Log</h2><pre class="log mono" id="gLog"></pre></div>
+</section>
+
+<!-- ================= ABOUT ================= -->
+<section id="t-about">
+  <div class="card">
+    <h2>Privacy</h2>
+    <ul>
+      <li>One static file. A Content-Security-Policy blocks every network request (<span class="mono">connect-src 'none'</span>), so it cannot upload anything.</li>
+      <li>Settings and decoder config are in this browser's localStorage. Packet history is kept in memory only and is gone when you close the tab; export is a manual download.</li>
+      <li>Bluetooth permission is granted by your browser per device; this page never sees MAC addresses.</li>
+      <li>The beacon's advertisements are <b>not encrypted</b>. Anyone with a BLE scanner nearby can read them; this page does not change that.</li>
+    </ul>
+    <div class="row"><button class="b" id="btnExport">Download packet log (JSON)</button><button class="b dng" id="btnWipe">Wipe saved settings</button></div>
+  </div>
+  <div class="card">
+    <h2>Limits</h2>
+    <ul>
+      <li>Requires <b>Chrome / Edge on Android or desktop</b> over HTTPS or <span class="mono">localhost</span>. Safari and Firefox have no Web Bluetooth.</li>
+      <li>Passive scanning needs <span class="mono">chrome://flags/#enable-experimental-web-platform-features</span>. Without it, use "Add beacon (picker)", which only watches the one beacon you pick.</li>
+      <li>Accelerometer only: tilt is valid while the beacon is still. Yaw (rotation about vertical) can't be known, and fast motion shows "uncertain". Packets arrive about once per second at your configured interval.</li>
+      <li>The ACC byte layout is learned from your device in the Decoder Lab. Nothing here is a verified Minew decoder until you've run that on your beacon.</li>
+      <li>Standard frames decoded here: iBeacon, Eddystone UID / URL / TLM.</li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<script>
+"use strict";
+/* =====================================================================================
+   Beacon Lab - single file, no network. Sections:
+   1 utils  2 math  3 pipeline (calibration, smoothing, top face)  4 frame decoders
+   5 field finder / pose solver  6 BLE glue  7 UI
+   ===================================================================================== */
+
+/* ---------- 1. utils ---------- */
+const $ = (id) => document.getElementById(id);
+const hex = (u8) => Array.from(u8, b => b.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+const u8of = (dv) => new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const BASE = '-0000-1000-8000-00805f9b34fb';
+function shortUuid(u) { u = String(u).toLowerCase(); return (u.startsWith('0000') && u.endsWith(BASE)) ? u.slice(4, 8) : u; }
+function normUuid(s) {
+  s = s.trim().toLowerCase(); if (!s) return null;
+  if (/^[0-9a-f]{4}$/.test(s)) return '0000' + s + BASE;
+  if (/^0x[0-9a-f]{1,4}$/.test(s)) return '0000' + s.slice(2).padStart(4, '0') + BASE;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(s)) return s;
+  return null;
+}
+function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+function load(key, dflt) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : dflt; } catch (e) { return dflt; } }
+
+/* ---------- 2. math ---------- */
+const V = {
+  add: (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
+  sub: (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]],
+  mul: (a, k) => [a[0]*k, a[1]*k, a[2]*k],
+  dot: (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
+  cross: (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+  norm: (a) => Math.hypot(a[0], a[1], a[2]),
+  unit(a) { const n = V.norm(a); return (!isFinite(n) || n < 1e-9) ? null : [a[0]/n, a[1]/n, a[2]/n]; }
+};
+const Q = {
+  I: [1, 0, 0, 0],                                // [w,x,y,z], Hamilton
+  norm(q) { const n = Math.hypot(q[0], q[1], q[2], q[3]); return n < 1e-12 ? Q.I : q.map(v => v / n); },
+  axisAngle(a, ang) { const s = Math.sin(ang/2); return Q.norm([Math.cos(ang/2), a[0]*s, a[1]*s, a[2]*s]); },
+  fromUnitVectors(a, b) {
+    const d = V.dot(a, b);
+    if (d > 1 - 1e-12) return Q.I;
+    if (d < -1 + 1e-12) {
+      const helper = Math.abs(a[0]) < 0.9 ? [1,0,0] : [0,1,0];
+      return Q.axisAngle(V.unit(V.cross(a, helper)) || [0,0,1], Math.PI);
+    }
+    const c = V.cross(a, b); return Q.norm([1 + d, c[0], c[1], c[2]]);
+  },
+  rotate(q, v) {
+    const qv = [q[1], q[2], q[3]], t = V.mul(V.cross(qv, v), 2);
+    return V.add(V.add(v, V.mul(t, q[0])), V.cross(qv, t));
+  },
+  scaledAngle(q, k) {
+    if (q[0] < 0) q = q.map(v => -v);
+    const s = Math.hypot(q[1], q[2], q[3]);
+    if (s < 1e-9) return Q.I;
+    return Q.axisAngle([q[1]/s, q[2]/s, q[3]/s], 2 * Math.atan2(s, q[0]) * k);
+  },
+  slerp(a, b, t) {
+    let d = a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
+    if (d < 0) { b = b.map(v => -v); d = -d; }
+    if (d > 0.9995) return Q.norm(a.map((v, i) => v + (b[i]-v)*t));
+    const th0 = Math.acos(d), th = th0*t, s0 = Math.cos(th) - d*Math.sin(th)/Math.sin(th0), s1 = Math.sin(th)/Math.sin(th0);
+    return Q.norm(a.map((v, i) => s0*v + s1*b[i]));
+  },
+  // 4x4 column-major matrix string for CSS matrix3d. CSS has y down and z toward the viewer,
+  // body frame has +Y up, so the cube is rotated by C = diag(1,-1,-1) (a proper 180° turn about X).
+  css(q) {
+    const w = q[0], x = q[1], y = -q[2], z = -q[3];
+    const m = [1-2*(y*y+z*z), 2*(x*y+z*w), 2*(x*z-y*w), 0,
+               2*(x*y-z*w), 1-2*(x*x+z*z), 2*(y*z+x*w), 0,
+               2*(x*z+y*w), 2*(y*z-x*w), 1-2*(x*x+y*y), 0, 0, 0, 0, 1];
+    return 'matrix3d(' + m.map(v => v.toFixed(5)).join(',') + ')';
+  }
+};
+
+/* ---------- 3. orientation pipeline ---------- */
+// Dice numbering: opposite faces sum to 7. Body frame == beacon frame.
+const FACES = [
+  {n: 2, v: [ 1, 0, 0]}, {n: 5, v: [-1, 0, 0]},
+  {n: 3, v: [ 0, 1, 0]}, {n: 4, v: [ 0,-1, 0]},
+  {n: 1, v: [ 0, 0, 1]}, {n: 6, v: [ 0, 0,-1]}
+];
+const faceNormal = (n) => FACES.find(f => f.n === n).v;
+
+class Smoother { // time-aware exponential low-pass, tau<=0 disables
+  constructor(tau) { this.tau = tau; this.s = null; this.t = 0; }
+  reset() { this.s = null; }
+  update(v, t) {
+    if (!this.s || this.tau <= 0) { this.s = v; this.t = t; return v; }
+    const dt = Math.min(10, Math.max(0.001, (t - this.t) / 1000)), a = 1 - Math.exp(-dt / this.tau);
+    this.s = V.add(this.s, V.mul(V.sub(v, this.s), a)); this.t = t; return this.s;
+  }
+}
+class TopFaceDetector {
+  constructor(enterDeg = 35, exitDeg = 48, confirm = 2) {
+    this.enter = Math.cos(enterDeg*Math.PI/180); this.exit = Math.cos(exitDeg*Math.PI/180); this.confirm = confirm; this.reset();
+  }
+  reset() { this.committed = null; this.cand = null; this.count = 0; }
+  stale() { this.reset(); return {n: null, why: 'stale data'}; }
+  update(up, dominant) {
+    const u = up && V.unit(up);
+    if (!u) { this.reset(); return {n: null, why: 'no data'}; }
+    if (!dominant) { this.reset(); return {n: null, why: 'beacon moving (gravity not dominant)'}; }
+    let best = FACES[0], bd = -2;
+    for (const f of FACES) { const d = V.dot(f.v, u); if (d > bd) { bd = d; best = f; } }
+    if (bd >= this.enter) {
+      if (best.n === this.committed) { this.cand = null; this.count = 0; return {n: best.n, align: bd}; }
+      if (best.n === this.cand) this.count++; else { this.cand = best.n; this.count = 1; }
+      if (this.count >= this.confirm) { this.committed = best.n; this.cand = null; this.count = 0; return {n: best.n, align: bd}; }
+      this.committed = null; return {n: null, why: 'settling…'};
+    }
+    this.cand = null; this.count = 0;
+    if (this.committed != null) {
+      const cd = V.dot(faceNormal(this.committed), u);
+      if (cd >= this.exit) return {n: this.committed, align: cd};
+      this.committed = null;
+    }
+    return {n: null, why: 'resting on an edge / corner'};
+  }
+}
+class Calibration {
+  constructor(need = 5) { this.need = need; this.reset(); }
+  reset() { this.samples = []; this.status = {state: 'none'}; this.correction = Q.I; this.refG = 1; }
+  start() { this.samples = []; this.status = {state: 'collecting', have: 0}; }
+  add(g) {
+    if (this.status.state !== 'collecting') return;
+    this.samples.push(g);
+    if (this.samples.length < this.need) { this.status = {state: 'collecting', have: this.samples.length}; return; }
+    let sum = [0,0,0]; this.samples.forEach(s => sum = V.add(sum, s));
+    const mean = V.mul(sum, 1/this.samples.length), mag = V.norm(mean), dir = V.unit(mean);
+    if (!dir || mag < 0.5 || mag > 1.5) { this.status = {state: 'failed', why: `mean |a| = ${mag.toFixed(3)} g is outside 0.5–1.5 g (check scale in Decoder Lab and hold still)`}; return; }
+    let maxA = 0; for (const s of this.samples) { const d = V.unit(s); if (d) maxA = Math.max(maxA, Math.acos(Math.min(1, Math.max(-1, V.dot(d, dir))))); }
+    if (maxA*180/Math.PI > 8) { this.status = {state: 'failed', why: 'beacon moved during calibration; hold it still and retry'}; return; }
+    const face = FACES.reduce((a, b) => V.dot(b.v, dir) > V.dot(a.v, dir) ? b : a);
+    this.correction = Q.fromUnitVectors(dir, face.v); this.refG = mag;
+    this.status = {state: 'done', mag, face: face.n};
+  }
+}
+class Pipeline {
+  constructor() {
+    this.sm = new Smoother(0.8); this.cal = new Calibration(); this.det = new TopFaceDetector();
+    this.sens = 1; this.auto = true; this.tol = 0.15;
+  }
+  set tau(v) { this.sm.tau = v; }
+  resetOrientation() { this.cal.reset(); this.sm.reset(); this.det.reset(); }
+  // g: acceleration in g, already axis-mapped. Returns the full result.
+  sample(g, t) {
+    if (this.cal.status.state === 'collecting') {
+      this.cal.add(g);
+      if (this.cal.status.state === 'done') { this.sm.reset(); this.det.reset(); }
+    }
+    const f = this.sm.update(g, t), mag = V.norm(f);
+    const dominant = this.cal.refG > 0 && Math.abs(mag / this.cal.refG - 1) <= this.tol;
+    const u = V.unit(f), up = u && Q.rotate(this.cal.correction, u);
+    const top = this.auto ? this.det.update(up, dominant) : {n: null, why: 'auto detection off'};
+    const q = (up && dominant) ? Q.scaledAngle(Q.fromUnitVectors(up, [0,1,0]), this.sens) : null;
+    return {g, filtered: f, mag, dominant, up, q, top, cal: this.cal.status};
+  }
+}
+
+/* ---------- 4. frame decoders (standard, public formats only) ---------- */
+function decodeIBeacon(bytes) {
+  if (bytes.length < 23 || bytes[0] !== 0x02 || bytes[1] !== 0x15) return null;
+  const h = Array.from(bytes.slice(2, 18), b => b.toString(16).padStart(2, '0')).join('');
+  const uuid = `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+  const major = (bytes[18] << 8) | bytes[19], minor = (bytes[20] << 8) | bytes[21];
+  const tx = bytes[22] > 127 ? bytes[22] - 256 : bytes[22];
+  return `iBeacon uuid=${uuid} major=${major} minor=${minor} tx@1m=${tx} dBm`;
+}
+const EDD_SCHEME = ['http://www.', 'https://www.', 'http://', 'https://'];
+const EDD_EXP = ['.com/', '.org/', '.edu/', '.net/', '.info/', '.biz/', '.gov/', '.com', '.org', '.edu', '.net', '.info', '.biz', '.gov'];
+function decodeEddystone(b) {
+  if (!b.length) return null;
+  const t = b[0] >> 4, s8 = (x) => x > 127 ? x - 256 : x;
+  if (t === 0x0 && b.length >= 18) return `Eddystone-UID tx@0m=${s8(b[1])} dBm ns=${hex(b.slice(2,12)).replace(/ /g,'')} id=${hex(b.slice(12,18)).replace(/ /g,'')}`;
+  if (t === 0x1 && b.length >= 4) {
+    let url = EDD_SCHEME[b[2]] ?? '?';
+    for (let i = 3; i < b.length; i++) url += (b[i] < EDD_EXP.length) ? EDD_EXP[b[i]] : String.fromCharCode(b[i]);
+    return `Eddystone-URL ${url} tx@0m=${s8(b[1])} dBm`;
+  }
+  if (t === 0x2 && b.length >= 14 && b[1] === 0) {
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    const mv = dv.getUint16(2), tr = dv.getInt16(4), adv = dv.getUint32(6), sec = dv.getUint32(10) / 10;
+    return `Eddystone-TLM batt=${mv === 0 ? 'n/a' : mv + ' mV'} temp=${tr === -32768 ? 'n/a' : (tr/256).toFixed(2) + ' °C'} advCount=${adv} uptime=${sec.toFixed(1)} s`;
+  }
+  return null;
+}
+// Collapse every blob of an advertisement into {key -> Uint8Array}
+function blobsOf(ev) {
+  const out = {};
+  if (ev.manufacturerData) ev.manufacturerData.forEach((dv, id) => { out['mfr:' + id.toString(16).padStart(4, '0')] = u8of(dv).slice(); });
+  if (ev.serviceData) ev.serviceData.forEach((dv, uuid) => { out['svc:' + shortUuid(uuid)] = u8of(dv).slice(); });
+  return out;
+}
+function describeBlob(key, b) {
+  if (key === 'mfr:004c') { const d = decodeIBeacon(b); if (d) return d; }
+  if (key === 'svc:feaa') { const d = decodeEddystone(b); if (d) return d; }
+  let label = key;
+  if (key === 'svc:ffe1') label += ' (Minew-style service data, layout undocumented: use Decoder Lab)';
+  return `${label}: ${hex(b)}`;
+}
+
+/* ---------- 5. ACC field finder, pose solver, decoder ---------- */
+const DEFAULT_DECODER = {key: '', fmt: 'i16le', x: 0, y: 2, z: 4, scale: 1, mo: -1, mv: 0, map: {perm: [0,1,2], sign: [1,1,1]}};
+const FMT_SIZE = {i16le: 2, i16be: 2, i8: 1};
+function readField(b, off, fmt) {
+  if (off < 0 || off + FMT_SIZE[fmt] > b.length) return null;
+  if (fmt === 'i8') return b[off] > 127 ? b[off] - 256 : b[off];
+  const v = fmt === 'i16le' ? (b[off] | (b[off+1] << 8)) : ((b[off] << 8) | b[off+1]);
+  return v > 32767 ? v - 65536 : v;
+}
+function decodeRaw(bytes, cfg) {           // -> [x,y,z] in decoder units (before scale), or null
+  if (cfg.mo >= 0 && bytes[cfg.mo] !== cfg.mv) return null;
+  const x = readField(bytes, cfg.x, cfg.fmt), y = readField(bytes, cfg.y, cfg.fmt), z = readField(bytes, cfg.z, cfg.fmt);
+  return (x == null || y == null || z == null) ? null : [x, y, z];
+}
+function applyMap(v, map) { return [map.sign[0]*v[map.perm[0]], map.sign[1]*v[map.perm[1]], map.sign[2]*v[map.perm[2]]]; }
+function decodeToG(bytes, cfg) { const r = decodeRaw(bytes, cfg); return r && {raw: r, g: applyMap(V.mul(r, cfg.scale), cfg.map)}; }
+
+// Search consecutive x,y,z triples whose magnitude is constant and direction varies across samples.
+function findFields(samples) {
+  const len = Math.min(...samples.map(s => s.length)), found = [];
+  for (const fmt of ['i16le', 'i16be', 'i8']) {
+    const sz = FMT_SIZE[fmt];
+    for (let off = 0; off + 3*sz <= len; off++) {
+      const cfg = {fmt, x: off, y: off+sz, z: off+2*sz, mo: -1, mv: 0};
+      const vs = samples.map(s => decodeRaw(s, cfg));
+      if (vs.some(v => !v)) continue;
+      const mags = vs.map(V.norm), M = mags.reduce((a, b) => a + b, 0) / mags.length;
+      if (M < 4) continue;                                    // near-zero fields are not gravity
+      const sd = Math.sqrt(mags.reduce((a, m) => a + (m-M)**2, 0) / mags.length), rel = sd / M;
+      const us = vs.map(V.unit); if (us.some(u => !u)) continue;
+      let minDot = 1; for (let i = 0; i < us.length; i++) for (let j = i+1; j < us.length; j++) minDot = Math.min(minDot, V.dot(us[i], us[j]));
+      if (minDot > 0.3) continue;                             // directions did not change enough
+      found.push({fmt, x: cfg.x, y: cfg.y, z: cfg.z, rel, M, minDot});
+    }
+  }
+  return found.sort((a, b) => a.rel - b.rel);
+}
+// Best proper rotation (perm + signs, det=+1) taking decoded vectors onto the labelled face normals.
+function solveMap(poses) { // poses: [{d:[x,y,z] scaled to g, face:n}]
+  const perms = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]], parity = [1,-1,-1,1,1,-1];
+  let best = null;
+  perms.forEach((perm, pi) => {
+    for (let m = 0; m < 8; m++) {
+      const sign = [m & 1 ? -1 : 1, m & 2 ? -1 : 1, m & 4 ? -1 : 1];
+      if (parity[pi] * sign[0]*sign[1]*sign[2] !== 1) continue;           // keep right-handed only
+      let sum = 0, angs = [];
+      for (const p of poses) {
+        const u = V.unit(applyMap(p.d, {perm, sign})); if (!u) continue;
+        const c = V.dot(u, faceNormal(p.face)); sum += c; angs.push(Math.acos(Math.max(-1, Math.min(1, c)))*180/Math.PI);
+      }
+      if (!best || sum > best.sum) best = {perm, sign, sum, mean: angs.reduce((a, b) => a + b, 0) / (angs.length || 1), max: Math.max(...angs, 0)};
+    }
+  });
+  return best;
+}
+
+/* ---------- state ---------- */
+let cfg = Object.assign({}, DEFAULT_DECODER, load('bl.decoder', {}));
+let ui = Object.assign({tau: 0.8, sens: 1, axes: true, raw: true, auto: true, stale: 5, voice: true, vol: 1}, load('bl.ui', {}));
+
+/* ---------- voice (browser SpeechSynthesis; uses the phone's text-to-speech) ---------- */
+function speak(text, interrupt = true) {
+  if (!ui.voice || ui.vol <= 0 || !('speechSynthesis' in window)) return;
+  try {
+    if (interrupt) window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.volume = Math.min(1, ui.vol); u.rate = 0.95;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+const devices = new Map();                 // id -> {name,rssi,seen,count,blobs,uuids,tx}
+let targetId = load('bl.target', null);    // device.id is origin-specific, opaque; not a MAC
+const packetLog = [];                      // in-memory only
+let poses = load('bl.poses', []);          // [{face,key,hex}]
+let buffer = [];                           // free-run samples [{hex}]
+const pipe = new Pipeline();
+let tracking = false, lastPacketAt = null, packetCount = 0, rssiNow = null, result = null, staleMarked = false;
+const pktTimes = [];
+let curQ = Q.I, tgtQ = Q.I, lastFrame = 0;
+
+/* ---------- 6. BLE glue ---------- */
+const hasBT = typeof navigator !== 'undefined' && !!navigator.bluetooth;
+const hasScan = hasBT && typeof navigator.bluetooth.requestLEScan === 'function';
+let scanObj = null, watched = new Set();
+
+function onAdvert(ev) {
+  const id = ev.device ? ev.device.id : 'unknown', now = performance.now();
+  let d = devices.get(id);
+  if (!d) { d = {id, name: null, rssi: null, seen: 0, count: 0, blobs: {}, uuids: [], tx: null}; devices.set(id, d); }
+  d.name = ev.name || (ev.device && ev.device.name) || d.name; d.rssi = ev.rssi; d.seen = now; d.count++;
+  d.tx = ev.txPower; d.uuids = ev.uuids ? ev.uuids.map(shortUuid) : d.uuids;
+  const blobs = blobsOf(ev); Object.assign(d.blobs, blobs);
+  packetLog.push({t: Date.now(), id, name: d.name, rssi: ev.rssi, blobs: Object.fromEntries(Object.entries(blobs).map(([k, v]) => [k, hex(v)]))});
+  if (packetLog.length > 3000) packetLog.shift();
+  if (id === targetId) onTargetPacket(blobs, ev.rssi, now);
+  scheduleDevRender();
+}
+function onTargetPacket(blobs, rssi, now) {
+  rssiNow = rssi;
+  const selKey = $('srcKey').value;
+  if (guided.on && guided.detect) detectPacket(blobs);
+  if (guided.on && selKey && blobs[selKey]) guidedPacket(blobs[selKey]);
+  if (cfg.key && blobs[cfg.key]) {
+    const b = blobs[cfg.key], h = hex(b);
+    if (!buffer.length || buffer[buffer.length-1].hex !== h) { buffer.push({hex: h, key: cfg.key}); if (buffer.length > 400) buffer.shift(); }
+    if (tracking && !$('cDemo').checked) {
+      const dec = decodeToG(b, cfg);
+      if (dec) acceptSample(dec.raw, dec.g, now);
+    }
+  }
+  refreshLab();
+}
+function acceptSample(raw, g, now) {
+  lastPacketAt = now; packetCount++; staleMarked = false;
+  pktTimes.push(now); while (pktTimes.length && now - pktTimes[0] > 10000) pktTimes.shift();
+  result = pipe.sample(g, now); result.raw = raw; result.source = 'live';
+  if (result.q) tgtQ = result.q;
+}
+
+async function startScan() {
+  if (!hasBT) return;
+  try {
+    if (hasScan) {
+      navigator.bluetooth.addEventListener('advertisementreceived', onAdvert);
+      scanObj = await navigator.bluetooth.requestLEScan({acceptAllAdvertisements: true, keepRepeatedDevices: true});
+      setScan('scanning (all advertisements)', true);
+    } else {
+      await pickDevice();
+    }
+  } catch (e) { setScan('scan failed: ' + e.message, false); }
+}
+function stopScan() {
+  try { if (scanObj && scanObj.active) scanObj.stop(); } catch (e) {}
+  scanObj = null;
+  watched.forEach(d => { try { d.unwatchAdvertisements(); } catch (e) {} }); watched.clear();
+  try { navigator.bluetooth.removeEventListener('advertisementreceived', onAdvert); } catch (e) {}
+  setScan('idle', false);
+}
+async function pickDevice() {
+  const optionalServices = ['battery_service', 'device_information', 'generic_access', 0xfeaa, 0xffe0, 0xffe1, 0xfff0].concat(extraUuids());
+  const dev = await navigator.bluetooth.requestDevice({acceptAllDevices: true, optionalServices, optionalManufacturerData: [0x004c, 0x0059, 0x0f00, 0x0c3b]});
+  if (typeof dev.watchAdvertisements !== 'function') throw new Error('watchAdvertisements is not supported in this browser');
+  dev.addEventListener('advertisementreceived', onAdvert);
+  await dev.watchAdvertisements(); watched.add(dev);
+  if (!targetId) setTarget(dev.id);
+  setScan('watching ' + (dev.name || dev.id.slice(0, 8)), true);
+}
+function setScan(text, on) {
+  const p = $('scanState'); p.textContent = text; p.className = 'pill ' + (on ? 'ok' : '');
+  $('btnScan').disabled = on; $('btnStop').disabled = !on;
+}
+function setTarget(id) { targetId = id; store('bl.target', id); scheduleDevRender(); refreshLab(); refreshSrc(); }
+function extraUuids() { return $('gUuids').value.split(',').map(normUuid).filter(Boolean); }
+
+/* ---------- 7. UI ---------- */
+let devTimer = null;
+function scheduleDevRender() { if (!devTimer) devTimer = setTimeout(() => { devTimer = null; renderDevices(); }, 250); }
+function renderDevices() {
+  const filter = $('nameFilter').value.trim().toLowerCase(), now = performance.now();
+  const rows = [...devices.values()].filter(d => !filter || (d.name || '').toLowerCase().includes(filter))
+    .sort((a, b) => (b.id === targetId) - (a.id === targetId) || (b.rssi ?? -999) - (a.rssi ?? -999));
+  $('devCount').textContent = `(${rows.length})`;
+  if (!rows.length) { $('devBody').innerHTML = '<tr><td colspan="5" class="dim">No advertisements yet.</td></tr>'; return; }
+  $('devBody').innerHTML = rows.map(d => {
+    const frames = Object.entries(d.blobs).map(([k, b]) => esc(describeBlob(k, b))).join('<br>');
+    return `<tr class="click ${d.id === targetId ? 'sel' : ''}" data-id="${esc(d.id)}"><td>${esc(d.name || '(no name)')}${d.id === targetId ? ' <span class="pill ok">target</span>' : ''}<div class="dim mono">${esc(d.id.slice(0, 10))}</div></td>
+      <td>${d.rssi ?? '—'} dBm</td><td>${((now - d.seen)/1000).toFixed(1)}s</td><td>${d.count}</td><td class="mono hex">${frames || '<span class="dim">no manufacturer/service data</span>'}${d.uuids.length ? '<br><span class="dim">uuids: ' + esc(d.uuids.join(', ')) + '</span>' : ''}</td></tr>`;
+  }).join('');
+}
+$('devBody').addEventListener('click', e => { const tr = e.target.closest('tr[data-id]'); if (tr) setTarget(tr.dataset.id); });
+
+/* ---- dice DOM ---- */
+const FACE_CSS = {1: 'rotateY(180deg)', 6: '', 2: 'rotateY(90deg)', 5: 'rotateY(-90deg)', 3: 'rotateX(90deg)', 4: 'rotateX(-90deg)'};
+const faceEls = {};
+(function buildCube() {
+  const cube = $('cube');
+  for (let n = 1; n <= 6; n++) {
+    const f = document.createElement('div'); f.className = 'face'; f.textContent = n;
+    f.dataset.n = n; f.style.transform = `${FACE_CSS[n]} translateZ(70px)`; cube.appendChild(f); faceEls[n] = f;
+  }
+  const axes = document.createElement('div'); axes.id = 'axes';
+  axes.style.cssText = 'position:absolute;transform-style:preserve-3d';
+  [['X', '#f87171', ''], ['Y', '#4ade80', 'rotateZ(-90deg)'], ['Z', '#60a5fa', 'rotateY(90deg)']].forEach(([l, c, t]) => {
+    const a = document.createElement('div'); a.className = 'axis'; a.style.cssText = `width:130px;background:${c};transform:${t}`;
+    a.innerHTML = `<i style="color:${c}">${l}</i>`; axes.appendChild(a);
+  });
+  cube.appendChild(axes);
+})();
+const LIGHT = V.unit([-0.4, 0.9, 0.6]);
+function drawCube(q, topN, live) {
+  $('cube').style.transform = Q.css(q);
+  $('cube').classList.toggle('dim', !live);
+  $('shadow').style.opacity = live ? 1 : .4;
+  $('axes').style.display = ui.axes ? '' : 'none';
+  for (let n = 1; n <= 6; n++) {
+    const nw = Q.rotate(q, faceNormal(n));                      // world normal, +Y up
+    // viewer is at css(+z) elevated ~24° and yawed -28°: approximate with fixed light only
+    const shade = 0.42 + 0.58 * Math.max(0, V.dot(nw, LIGHT));
+    faceEls[n].style.setProperty('--b', shade.toFixed(3));
+    faceEls[n].classList.toggle('top', n === topN);
+  }
+}
+function frame(t) {
+  const dt = Math.min(0.1, (t - lastFrame) / 1000 || 0.016); lastFrame = t;
+  curQ = Q.slerp(curQ, tgtQ, 1 - Math.exp(-dt * 10));
+  const live = isLive();
+  drawCube(curQ, result && result.top && result.top.n, live || $('cDemo').checked);
+  requestAnimationFrame(frame);
+}
+function isLive() {
+  return tracking && !$('cDemo').checked && result && result.source === 'live' && lastPacketAt != null && (performance.now() - lastPacketAt) <= ui.stale * 1000;
+}
+const fmt3 = (v) => `X ${v[0].toFixed(3).padStart(8)}  Y ${v[1].toFixed(3).padStart(8)}  Z ${v[2].toFixed(3).padStart(8)}`;
+const uncertain = (r) => r.top.why || 'uncertain';
+
+function refreshDice() {
+  const demo = $('cDemo').checked, now = performance.now();
+  const age = lastPacketAt == null ? null : now - lastPacketAt, stale = age != null && age > ui.stale * 1000;
+  const live = isLive();
+  const badge = $('liveBadge');
+  if (demo) { badge.textContent = 'DEMO – NOT SENSOR DATA'; badge.className = 'pill demo'; }
+  else if (live) { badge.textContent = '● LIVE DATA'; badge.className = 'pill ok'; }
+  else if (stale) { badge.textContent = '○ STALE – not live'; badge.className = 'pill warn'; }
+  else if (!cfg.key) { badge.textContent = 'NO DECODER SET'; badge.className = 'pill bad'; }
+  else { badge.textContent = tracking ? 'WAITING FOR PACKETS' : 'NOT TRACKING'; badge.className = 'pill'; }
+
+  const r = result;
+  $('topNum').textContent = r && r.top.n ? r.top.n : '?';
+  $('topDetail').textContent = r ? (r.top.n ? `calculated · ${(Math.acos(Math.min(1, r.top.align))*180/Math.PI).toFixed(0)}° off vertical` : uncertain(r)) : 'no data';
+  $('rawTxt').parentElement.style.display = ui.raw ? '' : 'none';
+  $('rawTxt').textContent = r ? (r.source === 'demo' ? 'DEMO ' : '') + (r.raw ? r.raw.join(', ') : '—') : '—';
+  $('filtTxt').textContent = r ? fmt3(r.filtered) + `   |a| ${r.mag.toFixed(3)} g` : '—';
+  $('upTxt').textContent = r && r.up ? fmt3(r.up) + (r.dominant ? '' : '  (moving)') : '—';
+  const c = pipe.cal.status;
+  $('calTxt').textContent = c.state === 'none' ? 'not calibrated (axes = dice axes, 1.00 g)'
+    : c.state === 'collecting' ? `calibrating ${c.have}/${pipe.cal.need}… hold still on a flat surface`
+    : c.state === 'failed' ? 'failed: ' + c.why : `done: |a| ${c.mag.toFixed(3)} g, snapped to face ${c.face}`;
+  const rate = pktTimes.length > 1 ? ((pktTimes.length - 1) * 1000 / (pktTimes[pktTimes.length-1] - pktTimes[0])) : 0;
+  $('packetInfo').innerHTML = `<span>RSSI</span><span>${rssiNow ?? '—'} dBm</span><span>Last packet</span><span>${age == null ? '—' : (age/1000).toFixed(1) + ' s ago'}</span><span>Rate / count</span><span>${rate.toFixed(2)} pkt/s · ${packetCount}</span><span>Freshness</span><span>${age == null ? 'no data' : stale ? 'STALE' : 'fresh'}</span>`;
+  if (tracking && stale && !staleMarked) { staleMarked = true; if (result) { result.top = pipe.det.stale(); result.q = null; } }
+
+  // Face Finder screen
+  const nn = r && r.top ? r.top.n : null;
+  if (stale) lastStable = null; else if (nn != null && (live || demo)) lastStable = nn;
+  let num = '?', sub = '', bd = ['idle', ''];
+  if (!cfg.key) sub = 'Not set up yet: run a setup below.';
+  else if (!tracking && !demo) sub = 'Press Start listening.';
+  else if (stale) { sub = `No data for ${(age / 1000).toFixed(0)} s. Is the beacon in range?`; bd = ['no data', 'warn']; }
+  else if (lastAnnounceFace(nn)) { num = String(nn); sub = `Stopped. Side ${nn} is facing up.`; bd = ['stable', 'ok']; }
+  else if (live || demo) { num = lastStable != null ? String(lastStable) : '?'; sub = (r && r.top.why) ? 'Waiting: ' + r.top.why : 'Waiting for data…'; bd = ['settling', 'warn']; }
+  else { sub = 'Waiting for packets…'; bd = ['waiting', '']; }
+  $('ffNum').textContent = num; $('ffNum').style.opacity = nn != null ? 1 : .45; $('ffSub').textContent = sub;
+  $('ffBadge').textContent = bd[0]; $('ffBadge').className = 'pill ' + bd[1];
+  $('ffListen').textContent = tracking ? 'Stop listening' : 'Start listening';
+
+  // Calibration result announcement
+  if (calWatch && (c.state === 'done' || c.state === 'failed')) {
+    calWatch = false;
+    if (c.state === 'done') { speak('Calibration complete. Put the beacon on any side and leave it.'); gStatus('Calibration complete. Put the beacon on any side and leave it still.'); }
+    else { speak('Calibration failed. Hold the beacon still and press calibrate.'); gStatus('Calibration failed: ' + c.why, 'bad'); }
+  }
+  // Speak the face once the dice settles on it
+  const n = r && r.top ? r.top.n : null;
+  if (n == null) { spokenFace = null; }
+  else if (n !== spokenFace && (live || demo) && now - spokenAt > 1500) {
+    spokenFace = n; spokenAt = now; speak((demo ? 'Demo. ' : '') + 'Side ' + n + ' is facing up.');
+  }
+}
+let spokenFace = null, spokenAt = 0, lastStable = null;
+function lastAnnounceFace(n) { return n != null; }
+function refreshSrc() {
+  const t = targetId && devices.get(targetId);
+  $('srcInfo').innerHTML = `Target: <b>${t ? esc(t.name || '(no name)') : targetId ? 'selected (not seen yet)' : 'none, pick one in Scanner'}</b> · decoder: <b>${cfg.key || 'not set'}</b>`;
+}
+function refreshLab() {
+  const t = targetId && devices.get(targetId);
+  $('labTarget').textContent = t ? (t.name || '(no name)') + '  ' + t.id.slice(0, 10) : targetId ? 'selected, not seen yet' : 'none selected';
+  const keys = t ? Object.keys(t.blobs) : [], sel = $('srcKey');
+  const want = cfg.key || sel.value;
+  if (sel.options.length !== keys.length || [...sel.options].some((o, i) => o.value !== keys[i])) {
+    sel.innerHTML = keys.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+    if (keys.includes(want)) sel.value = want;
+  }
+  const b = t && t.blobs[sel.value];
+  $('srcHex').textContent = b ? hex(b) : '—'; $('srcLen').textContent = b ? `${b.length} bytes` : '';
+  const live = b && decodeToG(b, Object.assign({}, cfg, {key: sel.value}));
+  $('cfgLive').textContent = live ? `decoded now → raw ${live.raw.join(', ')} · g ${fmt3(live.g)} · |a| ${V.norm(live.g).toFixed(3)} g` : 'no decoded values (check offsets / frame match)';
+  $('cfgKey').textContent = cfg.key || 'not set';
+  $('cfgMap').textContent = `perm [${cfg.map.perm}] sign [${cfg.map.sign}]`;
+  $('bufInfo').textContent = `${new Set(buffer.map(x => x.hex)).size} distinct packets buffered`;
+  renderPoses();
+}
+function renderPoses() {
+  $('poseList').innerHTML = poses.length ? poses.map(p => `face ${p.face} up → ${p.key} ${esc(p.hex)}`).join('<br>') : '<span class="dim">no poses captured</span>';
+}
+function populateCfg() {
+  $('cfgFmt').value = cfg.fmt; $('cfgX').value = cfg.x; $('cfgY').value = cfg.y; $('cfgZ').value = cfg.z;
+  $('cfgScale').value = cfg.scale; $('cfgMO').value = cfg.mo; $('cfgMV').value = cfg.mv;
+}
+function saveCfgFromInputs() {
+  cfg.key = $('srcKey').value || cfg.key; cfg.fmt = $('cfgFmt').value;
+  cfg.x = +$('cfgX').value; cfg.y = +$('cfgY').value; cfg.z = +$('cfgZ').value;
+  cfg.scale = +$('cfgScale').value || 1; cfg.mo = +$('cfgMO').value; cfg.mv = +$('cfgMV').value;
+  store('bl.decoder', cfg); refreshLab(); refreshSrc();
+}
+function applyFound(f, samplesAsPoses) {
+  cfg.fmt = f.fmt; cfg.x = f.x; cfg.y = f.y; cfg.z = f.z; cfg.scale = 1 / f.M; cfg.key = $('srcKey').value || cfg.key;
+  cfg.map = {perm: [0,1,2], sign: [1,1,1]};
+  populateCfg();
+}
+function toBytes(h) { return Uint8Array.from(h.split(' ').map(x => parseInt(x, 16))); }
+
+/* poses */
+(function () {
+  const wrap = $('poseBtns');
+  for (let n = 1; n <= 6; n++) {
+    const b = document.createElement('button'); b.className = 'b'; b.textContent = `Capture: ${n} up`;
+    b.onclick = () => {
+      const t = targetId && devices.get(targetId), key = $('srcKey').value, blob = t && t.blobs[key];
+      if (!blob) { $('solveOut').textContent = 'No data from the target yet.'; return; }
+      if (performance.now() - t.seen > 3000) { $('solveOut').textContent = 'Last packet is older than 3 s. Wait for a fresh one and try again.'; return; }
+      poses = poses.filter(p => p.face !== n); poses.push({face: n, key, hex: hex(blob)}); poses.sort((a, b) => a.face - b.face);
+      store('bl.poses', poses); renderPoses(); $('solveOut').textContent = `Captured face ${n}.`;
+    };
+    wrap.appendChild(b);
+  }
+})();
+$('btnPoseClear').onclick = () => { poses = []; store('bl.poses', poses); renderPoses(); $('solveOut').textContent = ''; };
+$('btnSolve').onclick = () => { analyzePoses(); };
+function analyzePoses() {
+  const out = $('solveOut');
+  if (poses.length < 3) { out.textContent = 'Capture at least 3 poses (all 6 recommended).'; return false; }
+  const samples = poses.map(p => toBytes(p.hex)), found = findFields(samples);
+  if (!found.length) { out.textContent = 'No x,y,z field triple with a constant magnitude was found. Possible causes: you moved the beacon while capturing, the wrong blob is selected, or the values are not int8/int16 in consecutive fields. Check the raw bytes by hand (use the offsets form on the right).'; return false; }
+  const f = found[0]; applyFound(f);
+  const decoded = poses.map(p => ({face: p.face, d: V.mul(decodeRaw(toBytes(p.hex), cfg), cfg.scale)}));
+  const m = solveMap(decoded);
+  if (m) cfg.map = {perm: m.perm, sign: m.sign};
+  store('bl.decoder', cfg); populateCfg(); refreshLab();
+  const alts = found.slice(1, 3).map(a => `${a.fmt} @${a.x},${a.y},${a.z} (rel.sd ${(a.rel*100).toFixed(1)}%)`).join('; ');
+  const unit = f.M > 600 ? 'looks like milli-g' : f.M > 5 && f.M < 15 ? 'looks like m/s²' : f.M > 100 ? 'fixed-point or LSB counts' : 'unknown';
+  out.innerHTML = `Best field: <b>${f.fmt}</b> at offsets <b>${f.x}, ${f.y}, ${f.z}</b>; mean |raw| = ${f.M.toFixed(1)} (${unit}); |a| spread ${(f.rel*100).toFixed(1)}%.<br>`
+    + `Scale set to ${cfg.scale.toPrecision(5)} so that gravity = 1 g (this assumes your poses were truly at rest).<br>`
+    + (m ? `Axis map: perm [${m.perm}] sign [${m.sign}] → mean error ${m.mean.toFixed(1)}°, worst ${m.max.toFixed(1)}° over ${decoded.length} poses.${m.max > 25 ? '<br><b>Worst pose error is large: a pose label may be wrong or the beacon was tilted.</b>' : ''}` : 'Axis map could not be solved.')
+    + (alts ? `<br><span class="dim">other candidates: ${esc(alts)}</span>` : '')
+    + '<br><b>Check:</b> flat on any side, Dice tab → Calibrate; |a| should read ~1.00 g.';
+  return true;
+}
+
+/* ---- guided auto-capture ---- */
+const guided = {on: false, idx: 0, order: [1, 6, 2, 5, 3, 4], win: [], tol: 30, since: 0, minS: Infinity, lastWarn: 0, last: null, moved: false};
+let calWatch = false;
+// Byte-wise change with wrap-around (so 0xFF<->0x00 sign flips and carries count as tiny). Used for "is it still?".
+function m8(a, b) {
+  if (a.length !== b.length) return 1e9;
+  let m = 0; for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i] - b[i]); m = Math.max(m, Math.min(d, 256 - d)); }
+  return m;
+}
+// 16-bit change under the best byte alignment/endianness. Used for "is it a different side?".
+function m16(a, b) {
+  if (a.length !== b.length) return 1e9;
+  if (a.length < 2) return m8(a, b);
+  let best = Infinity;
+  for (const be of [true, false]) for (const par of [0, 1]) {
+    let m = 0;
+    for (let i = par; i + 1 < a.length; i += 2) {
+      const va = be ? (a[i] << 8) | a[i+1] : (a[i+1] << 8) | a[i], vb = be ? (b[i] << 8) | b[i+1] : (b[i+1] << 8) | b[i];
+      let d = Math.abs(va - vb); d = Math.min(d, 65536 - d); m = Math.max(m, d);
+    }
+    best = Math.min(best, m);
+  }
+  return best;
+}
+const sameSide = (a, b, tol) => m8(a, b) <= tol && m16(a, b) <= tol;
+function gStatus(text, kind) {
+  ['guidedStatus', 'ffStatus'].forEach(id => { const s = $(id); s.style.display = ''; s.textContent = text; s.className = 'banner' + (kind ? ' ' + kind : ''); });
+}
+function gPrompt(prev) {
+  const n = guided.order[guided.idx], k = guided.idx + 1;
+  const lead = prev == null ? '' : `Got ${prev}. `;
+  const how = prev == null ? `Put side ${n} facing up and keep it still.` : (n === 6 || n === 5 || n === 4) && prev === 7 - n ? `Now flip it over, side ${n} up.` : `Now side ${n} up.`;
+  speak(lead + how);
+  gStatus(`Step ${k} of ${guided.order.length}: put side ${n} facing up and keep the beacon still. Captured so far: ${poses.map(p => p.face).join(', ') || 'none'}.`);
+}
+function startGuided(order) {
+  const t = targetId && devices.get(targetId);
+  if (!t) { gStatus('Select your beacon in the Scanner tab first (tap its row), then try again.', 'warn'); speak('Select your beacon in the scanner first.'); return; }
+  guided.order = Array.isArray(order) ? order : [1, 6, 2, 5, 3, 4];
+  guided.on = true; guided.idx = 0; guided.win = []; guided.minS = Infinity; guided.since = performance.now(); guided.last = null; guided.moved = false;
+  guided.tol = Math.max(1, +$('gTol').value || 30);
+  poses = []; store('bl.poses', poses); renderPoses(); $('solveOut').textContent = '';
+  setGuidedButtons(true);
+  const keys = Object.keys(t.blobs);
+  if (keys.length > 1) {                       // several data blobs: find the one that reacts to shaking
+    guided.detect = {score: {}, prev: {}};
+    gStatus('Shake the beacon gently for 6 seconds so I can find its motion data…'); speak('Shake the beacon gently for six seconds.');
+    guided.detectTimer = setTimeout(finishDetect, 6000);
+  } else { if (keys[0]) $('srcKey').value = keys[0]; gPrompt(null); }
+}
+function detectPacket(blobs) {
+  const d = guided.detect; if (!d) return;
+  for (const [k, b] of Object.entries(blobs)) { const p = d.prev[k]; if (p) d.score[k] = (d.score[k] || 0) + m8(p, b); d.prev[k] = b.slice(); }
+}
+function finishDetect() {
+  if (!guided.on || !guided.detect) return;
+  const sc = guided.detect.score; guided.detect = null;
+  const best = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
+  if (!best || best[1] === 0) { stopGuided('No data changed while shaking. Make sure the beacon is close to the phone and shake it, then try again.'); speak('I saw no changing data. Please try again.'); return; }
+  $('srcKey').value = best[0]; refreshLab();
+  gStatus(`Using data "${best[0]}" (it changed most while shaking).`); gPrompt(null);
+}
+function setGuidedButtons(on) {
+  ['btnGuided', 'ffQuick', 'ffFull'].forEach(i => $(i).disabled = on);
+  ['btnGNow', 'btnGStop', 'ffCapNow', 'ffStop'].forEach(i => $(i).disabled = !on);
+}
+function stopGuided(msg) {
+  guided.on = false; clearTimeout(guided.detectTimer); guided.detect = null; setGuidedButtons(false);
+  if (msg) gStatus(msg);
+}
+function guidedPacket(bytes) {
+  const g = guided; if (!g.on) return;
+  if (g.detect) return;                                       // still choosing the data blob
+  const prev = g.last; g.last = bytes.slice();
+  if (prev && m8(prev, bytes) > g.tol) g.moved = true;          // beacon was moved since the last capture
+  g.win.push(bytes.slice()); if (g.win.length > 3) g.win.shift();
+  if (g.win.length < 3) return;
+  let S = 0; for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) S = Math.max(S, m8(g.win[i], g.win[j]));
+  g.minS = Math.min(g.minS, S);
+  const now = performance.now(), face = g.order[g.idx];
+  if (S <= g.tol) {
+    const cur = g.win[2];
+    const clash = g.moved ? null : poses.find(p => sameSide(toBytes(p.hex), cur, g.tol));
+    if (clash) {
+      if (now - g.lastWarn > 8000) { g.lastWarn = now; speak(`That is still side ${clash.face}. Turn it to side ${face}.`); gStatus(`Looks like side ${clash.face} again. Turn the beacon so side ${face} faces up.`, 'warn'); }
+      return;
+    }
+    capturePose(face, cur);
+  } else if (now - g.since > 25000 && isFinite(g.minS)) {
+    g.tol = Math.max(g.tol, Math.ceil(g.minS * 1.4)); g.since = now; $('gTol').value = g.tol;
+    speak('Still not steady. Loosening detection.'); gStatus(`Not settling; tolerance raised to ${g.tol}. Keep the beacon as still as you can.`, 'warn');
+  }
+}
+function capturePose(face, bytes) {
+  const g = guided, key = $('srcKey').value;
+  poses = poses.filter(p => p.face !== face); poses.push({face, key, hex: hex(bytes)}); poses.sort((a, b) => a.face - b.face);
+  store('bl.poses', poses); renderPoses();
+  g.idx++; g.win = []; g.minS = Infinity; g.since = performance.now(); g.moved = false;
+  if (g.idx < g.order.length) { gPrompt(face); return; }
+  stopGuided('All sides captured. Analyzing…');
+  if (analyzePoses()) {
+    gStatus('Done. Decoder set. Calibrating: keep the beacon still.', '');
+    speak(guided.order.length < 6 ? 'Captured. Keep the beacon still while I calibrate.' : 'All six captured. Keep the beacon still while I calibrate.');
+    if ($('btnTrack').disabled === false) $('btnTrack').click();
+    pipe.cal.start(); calWatch = true;
+    document.querySelector('#tabs button[data-t=face]').click();
+  } else {
+    gStatus('Analysis failed. See the message below, then try again (beacon must be still and the right blob selected).', 'bad');
+    speak('Analysis failed. Please try again.');
+  }
+}
+$('btnGuided').onclick = () => startGuided();
+$('ffQuick').onclick = () => startGuided([1, 2, 3]);
+$('ffFull').onclick = () => startGuided();
+$('ffStop').onclick = () => $('btnGStop').click();
+$('ffCapNow').onclick = () => $('btnGNow').click();
+$('btnGStop').onclick = () => { stopGuided('Guided capture cancelled.'); speak('Cancelled.'); };
+$('btnGNow').onclick = () => { if (guided.on && guided.last) capturePose(guided.order[guided.idx], guided.last); };
+$('gTol').onchange = () => { guided.tol = Math.max(1, +$('gTol').value || 30); };
+$('btnBufClear').onclick = () => { buffer = []; $('bufOut').textContent = ''; refreshLab(); };
+$('btnBufSearch').onclick = () => {
+  const uniq = [...new Map(buffer.filter(b => b.key === ($('srcKey').value)).map(b => [b.hex, b])).values()];
+  if (uniq.length < 8) { $('bufOut').textContent = `Only ${uniq.length} distinct packets. Need ≥ 8 across different still orientations.`; return; }
+  const found = findFields(uniq.map(u => toBytes(u.hex)));
+  $('bufOut').innerHTML = found.length ? found.slice(0, 5).map((f, i) => `${i+1}. ${f.fmt} @${f.x},${f.y},${f.z} mean|raw| ${f.M.toFixed(1)} rel.sd ${(f.rel*100).toFixed(1)}% <button class="b" data-i="${i}">use</button>`).join('<br>') : 'No candidate. Moving the beacon while buffering adds noise; capture still poses instead.';
+  $('bufOut').querySelectorAll('button').forEach(btn => btn.onclick = () => { applyFound(found[+btn.dataset.i]); store('bl.decoder', cfg); refreshLab(); });
+};
+$('btnCfgSave').onclick = saveCfgFromInputs;
+$('btnCfgReset').onclick = () => { cfg = Object.assign({}, DEFAULT_DECODER); store('bl.decoder', cfg); populateCfg(); refreshLab(); refreshSrc(); };
+$('srcKey').onchange = () => { refreshLab(); };
+
+/* controls */
+$('btnScan').onclick = startScan; $('btnStop').onclick = stopScan;
+$('btnPick').onclick = async () => { try { await pickDevice(); } catch (e) { setScan('picker: ' + e.message, false); } };
+$('btnClear').onclick = () => { devices.clear(); renderDevices(); };
+$('nameFilter').oninput = renderDevices;
+$('btnTrack').onclick = () => { tracking = true; staleMarked = false; $('btnTrack').disabled = true; $('btnUntrack').disabled = false; };
+$('btnUntrack').onclick = () => { tracking = false; $('btnTrack').disabled = false; $('btnUntrack').disabled = true; };
+$('btnCal').onclick = () => { if (!tracking && !$('cDemo').checked) { alert('Start tracking first, then calibrate with the beacon still on a flat surface.'); return; } pipe.cal.start(); };
+$('btnReset').onclick = () => { pipe.resetOrientation(); result = null; tgtQ = Q.I; };
+function syncUi() {
+  $('rTau').value = Math.round(ui.tau * 10); $('vTau').textContent = ui.tau.toFixed(1) + ' s';
+  $('rSens').value = Math.round(ui.sens * 10); $('vSens').textContent = ui.sens.toFixed(1) + '×';
+  $('cAxes').checked = ui.axes; $('cRaw').checked = ui.raw; $('cAuto').checked = ui.auto; $('sStale').value = String(ui.stale);
+  $('rVol').value = Math.round(ui.vol * 10); $('vVol').textContent = Math.round(ui.vol * 100) + '%';
+  $('btnVoice').textContent = 'Voice: ' + (ui.voice ? 'on' : 'off');
+  pipe.tau = ui.tau; pipe.sens = ui.sens; pipe.auto = ui.auto; store('bl.ui', ui);
+}
+$('rVol').oninput = e => { ui.vol = e.target.value / 10; syncUi(); };
+$('ffListen').onclick = () => { (tracking ? $('btnUntrack') : $('btnTrack')).click(); };
+$('ffSay').onclick = () => { if (lastStable != null) speak('Side ' + lastStable + ' is facing up.'); else speak('I do not have a side yet.'); };
+$('btnVoice').onclick = () => { ui.voice = !ui.voice; syncUi(); if (ui.voice) speak('Voice on'); else { try { speechSynthesis.cancel(); } catch (e) {} } };
+$('btnVoiceTest').onclick = () => { const was = ui.voice; ui.voice = true; speak('Side 3 is facing up. Voice test.'); ui.voice = was; };
+$('rTau').oninput = e => { ui.tau = e.target.value / 10; syncUi(); };
+$('rSens').oninput = e => { ui.sens = e.target.value / 10; syncUi(); };
+$('cAxes').onchange = e => { ui.axes = e.target.checked; syncUi(); };
+$('cRaw').onchange = e => { ui.raw = e.target.checked; syncUi(); };
+$('cAuto').onchange = e => { ui.auto = e.target.checked; if (!ui.auto) pipe.det.reset(); syncUi(); };
+$('sStale').onchange = e => { ui.stale = +e.target.value; syncUi(); };
+
+/* demo (synthetic, clearly labelled) */
+setInterval(() => {
+  if (!$('cDemo').checked) return;
+  const roll = +$('dX').value * Math.PI / 180, pitch = +$('dZ').value * Math.PI / 180, shake = +$('dS').value / 100;
+  // a gravity vector built from the sliders, plus random shake
+  let g = [Math.sin(roll) * Math.cos(pitch), Math.cos(roll) * Math.cos(pitch), Math.sin(pitch)];
+  g = V.add(g, [ (Math.random()-.5) * shake * 3, (Math.random()-.5) * shake * 3, (Math.random()-.5) * shake * 3 ]);
+  const now = performance.now();
+  result = pipe.sample(g, now); result.raw = g.map(v => +v.toFixed(3)); result.source = 'demo';
+  if (result.q) tgtQ = result.q;
+  lastPacketAt = now;
+}, 250);
+$('cDemo').onchange = e => { pipe.resetOrientation(); result = null; lastPacketAt = null; pktTimes.length = 0; packetCount = 0; };
+
+setInterval(() => { refreshDice(); if ($('t-scan').classList.contains('on')) renderDevices(); }, 400);
+
+/* ---------- diagnostic report (copy/paste only; nothing is sent anywhere) ---------- */
+function buildReport() {
+  const t = targetId && devices.get(targetId), L = [];
+  L.push('Beacon Lab report ' + new Date().toISOString());
+  L.push('UA: ' + navigator.userAgent);
+  L.push(`WebBluetooth=${hasBT} requestLEScan=${hasScan} secure=${window.isSecureContext}`);
+  L.push('Target: ' + (t ? `${t.name || '(no name)'} rssi=${t.rssi} packets=${t.count}` : 'none'));
+  if (t) Object.entries(t.blobs).forEach(([k, b]) => L.push(`blob ${k}: ${hex(b)}`));
+  L.push('Decoder: ' + JSON.stringify(cfg));
+  L.push('Poses: ' + (poses.length ? poses.map(p => `${p.face}=${p.hex}`).join(' | ') : 'none'));
+  L.push('Analyze: ' + ($('solveOut').textContent.replace(/\s+/g, ' ').trim() || 'not run'));
+  L.push('Guided status: ' + $('ffStatus').textContent);
+  L.push('Last packets for target:');
+  packetLog.filter(p => p.id === targetId).slice(-25).forEach(p => L.push(`  rssi ${p.rssi} ${JSON.stringify(p.blobs)}`));
+  return L.join('\n');
+}
+$('ffReport').onclick = async () => {
+  const text = buildReport();
+  try { await navigator.clipboard.writeText(text); $('ffReportInfo').textContent = 'Copied. Paste it into the chat.'; }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'width:100%;height:160px'; ta.className = 'mono'; $('ffReport').parentElement.after(ta); ta.select(); $('ffReportInfo').textContent = 'Select all and copy the text below.'; }
+};
+
+/* ---------- BeaconSET+ checklist ---------- */
+const CHECKS = [
+  ['acc', 'ACC frame is enabled on one slot and saved (you did this).'],
+  ['info', 'Keep the Info / DeviceInfo slot enabled. Minew advises this so the beacon stays easy to reconfigure.'],
+  ['int', 'Adv Interval of the ACC slot: allowed range is 100–5000 ms (default 1000). Use ~500 ms for quicker updates; lower values use more battery.'],
+  ['trig', 'Triggers: if a trigger (for example motion detect) is set on the ACC slot, the beacon may broadcast only on motion. Remove it, or turn on "always advertising".'],
+  ['accp', 'ACC parameters (ODR, wake-up threshold, wake-up duration): if the numbers only change when you shake the beacon, lower the wake-up threshold.'],
+  ['tx', 'Radio Txpower 0 dBm or higher and a sensible RSSI@0m value. These affect range only; keep the beacon within 1–2 m of the phone.'],
+  ['conn', 'Connectable stays "yes" unless you never need to reconfigure it. Switching it off can make reconfiguring hard.'],
+  ['pw', 'Password: 8 letters or digits. Default minew123. If you change it, write it down; a wrong password stops BeaconSET+ connecting.'],
+];
+(function () {
+  const saved = load('bl.chk', {}), box = $('chk');
+  box.innerHTML = CHECKS.map(([id, t]) => `<label style="align-items:flex-start;margin:6px 0"><input type="checkbox" data-id="${id}" ${saved[id] ? 'checked' : ''}><span>${esc(t)}</span></label>`).join('');
+  box.onchange = () => { const o = {}; box.querySelectorAll('input').forEach(i => o[i.dataset.id] = i.checked); store('bl.chk', o); };
+})();
+
+/* ---------- GATT console ---------- */
+let gServer = null; const gChars = new Map();
+const glog = (m) => { const l = $('gLog'); l.textContent += `[${new Date().toLocaleTimeString()}] ${m}\n`; l.scrollTop = l.scrollHeight; };
+const propList = (p) => ['broadcast','read','writeWithoutResponse','write','notify','indicate','authenticatedSignedWrites'].filter(k => p[k]).join(', ');
+function textOf(u8) { try { const s = new TextDecoder('utf-8', {fatal: true}).decode(u8); return /^[\x20-\x7e]+$/.test(s) ? s : null; } catch (e) { return null; } }
+let gConnectedAt = 0;
+function onGattDisc() {
+  $('gState').textContent = 'disconnected'; $('gState').className = 'pill'; $('gDisc').disabled = true;
+  glog(`Disconnected${gConnectedAt ? ' after ' + ((performance.now() - gConnectedAt) / 1000).toFixed(1) + ' s' : ''} (the beacon or phone closed the link)`);
+  gConnectedAt = 0;
+}
+$('gConnect').onclick = async () => {
+  if (!hasBT) return;
+  try {
+    const optionalServices = ['generic_access', 'device_information', 'battery_service', 0xfeaa, 0xffe0, 0xffe1, 0xfff0, 0xff00].concat(extraUuids());
+    const dev = await navigator.bluetooth.requestDevice({acceptAllDevices: true, optionalServices});
+    $('gState').textContent = 'connecting…'; glog('Connecting to ' + (dev.name || dev.id.slice(0, 8)));
+    dev.removeEventListener('gattserverdisconnected', onGattDisc); dev.addEventListener('gattserverdisconnected', onGattDisc);
+    gServer = await dev.gatt.connect(); gConnectedAt = performance.now(); $('gState').textContent = 'connected'; $('gState').className = 'pill ok'; $('gDisc').disabled = false;
+    const tree = $('gTree'); tree.innerHTML = ''; gChars.clear();
+    const services = await gServer.getPrimaryServices(); glog(`${services.length} service(s) visible: ${services.map(x => shortUuid(x.uuid)).join(', ')}. Chrome hides any service whose UUID is not in the UUID box above; find the beacon's own UUIDs with the nRF Connect app.`);
+    for (const s of services) {
+      const box = document.createElement('div'); box.style.marginBottom = '10px';
+      box.innerHTML = `<b class="mono">service ${esc(shortUuid(s.uuid))}</b>`; tree.appendChild(box);
+      let chars = []; try { chars = await s.getCharacteristics(); } catch (e) { glog('characteristics of ' + shortUuid(s.uuid) + ': ' + e.message); }
+      for (const c of chars) {
+        const id = s.uuid + '/' + c.uuid; gChars.set(id, c);
+        const row = document.createElement('div'); row.className = 'row mono'; row.style.marginLeft = '16px';
+        row.innerHTML = `<span>char ${esc(shortUuid(c.uuid))}</span><span class="dim">[${esc(propList(c.properties))}]</span>`;
+        if (c.properties.read) row.appendChild(btn('Read', async () => { try { const v = u8of(await c.readValue()); glog(`${shortUuid(c.uuid)} = ${hex(v)}${textOf(v) ? '  "' + textOf(v) + '"' : ''}${v.length === 1 ? '  (u8 ' + v[0] + ')' : ''}`); } catch (e) { glog('read failed: ' + e.message); } }));
+        if (c.properties.notify || c.properties.indicate) row.appendChild(btn('Notify', async () => { try { c.addEventListener('characteristicvaluechanged', ev => glog(`notify ${shortUuid(c.uuid)} = ${hex(u8of(ev.target.value))}`)); await c.startNotifications(); glog('notifications on ' + shortUuid(c.uuid)); } catch (e) { glog('notify failed: ' + e.message); } }));
+        if (c.properties.write || c.properties.writeWithoutResponse) {
+          const inp = document.createElement('input'); inp.placeholder = 'hex bytes e.g. 01 A0'; inp.style.width = '150px'; inp.className = 'mono';
+          row.appendChild(inp);
+          row.appendChild(btn('Write', async () => {
+            const bytes = (inp.value.trim().match(/[0-9a-f]{2}/gi) || []).map(h => parseInt(h, 16));
+            if (!bytes.length) return;
+            if (!confirm(`Write ${bytes.length} byte(s) to ${shortUuid(c.uuid)}?\nA wrong write can lock or misconfigure the beacon.`)) return;
+            try { const d = Uint8Array.from(bytes); if (c.properties.write) await c.writeValueWithResponse(d); else await c.writeValueWithoutResponse(d); glog(`wrote ${hex(d)} to ${shortUuid(c.uuid)}`); } catch (e) { glog('write failed: ' + e.message); }
+          }, 'dng'));
+        }
+        tree.appendChild(row);
+      }
+    }
+    // Read every readable characteristic straight away, before the beacon drops the link.
+    for (const [id, c] of gChars) {
+      if (!c.properties.read) continue;
+      if (!gServer.connected) { glog('Link closed before all values could be read.'); break; }
+      try { const v = u8of(await c.readValue()); glog(`${shortUuid(c.uuid)} = ${hex(v)}${textOf(v) ? '  "' + textOf(v) + '"' : ''}`); } catch (e) { glog(`${shortUuid(c.uuid)}: ${e.message.slice(0, 80)}`); }
+    }
+    try { const bs = await gServer.getPrimaryService('battery_service'), bc = await bs.getCharacteristic('battery_level'), v = await bc.readValue(); glog('Battery level: ' + v.getUint8(0) + ' %'); } catch (e) {}
+  } catch (e) { $('gState').textContent = 'error'; glog('Error: ' + e.message); }
+};
+function btn(label, fn, cls = '') { const b = document.createElement('button'); b.className = 'b ' + cls; b.textContent = label; b.onclick = fn; return b; }
+$('gDisc').onclick = () => { try { gServer && gServer.disconnect(); } catch (e) {} };
+
+/* ---------- about / export / tabs ---------- */
+$('btnExport').onclick = () => {
+  const blob = new Blob([JSON.stringify(packetLog, null, 1)], {type: 'application/json'}), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'beacon-packets.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('btnWipe').onclick = () => { if (confirm('Delete saved decoder, poses, target and display settings?')) { ['bl.decoder','bl.ui','bl.target','bl.poses','bl.chk'].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} }); location.reload(); } };
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.classList.toggle('on', s.id === 't-' + b.dataset.t));
+  if (b.dataset.t === 'lab' || b.dataset.t === 'face') refreshLab(); if (b.dataset.t === 'scan') renderDevices();
+});
+
+/* ---------- support banner ---------- */
+(function () {
+  const pill = $('supportPill'), bn = $('supportBanner');
+  if (!hasBT) {
+    pill.textContent = 'Web Bluetooth unavailable'; pill.className = 'pill bad';
+    bn.innerHTML = '<div class="banner bad">This browser has no Web Bluetooth' + (window.isSecureContext ? '' : ' (page is not a secure context: use HTTPS or localhost)') + '. Open this page in Chrome or Edge on Android or desktop. Demo mode still works.</div>';
+    ['btnScan','btnPick','gConnect'].forEach(i => $(i).disabled = true);
+  } else if (!hasScan) {
+    pill.textContent = 'picker mode'; pill.className = 'pill warn';
+    bn.innerHTML = '<div class="banner warn">Passive scanning (requestLEScan) is off. Enable <span class="mono">chrome://flags/#enable-experimental-web-platform-features</span> and restart Chrome for full scanning, or use "Add beacon (picker)" to watch one device.</div>';
+  } else { pill.textContent = 'Web Bluetooth + scanning'; pill.className = 'pill ok'; }
+})();
+
+populateCfg(); syncUi(); refreshSrc(); refreshLab(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
